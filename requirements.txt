@@ -4,3 +4,4 @@ joblib
 numpy==1.26.4
 transformers
 spacy==3.7.0
+torch
