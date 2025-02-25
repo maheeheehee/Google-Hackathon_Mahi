@@ -1,57 +1,42 @@
 import streamlit as st
-import pandas as pd
 import joblib
-import spacy
-from transformers import pipeline
-import os
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
 
-# Load spaCy model (from the directory where setup.sh installed it)
-model_name = "en_core_web_sm"
-model_path = os.path.join(os.getcwd(), model_name)
-
+# Load the model
 try:
-    ner_model = spacy.load(model_path)
-except OSError:
-    st.error(f"spaCy model '{model_name}' could not be loaded from '{model_path}'.")
-    st.stop()
-
-# Load NLP models
-sentiment_analyzer = pipeline("sentiment-analysis")  # Sentiment Analysis
-
-# Load text classification model
-try:
-    classifier = joblib.load("my_model.pkl")  # Replace "model.pkl" if needed
+    classifier = joblib.load("model.pkl")
 except Exception as e:
-    st.error(f"Failed to load text classifier model: {e}")
+    st.error(f"Failed to load model: {e}")
     st.stop()
 
-# Streamlit UI
-st.title("AI-Powered Text Processing App")
-st.write("Upload documents for OCR, classification, and analysis.")
+# Load the CSVs and retrain the TF-IDF vectorizer
+try:
+    # Replace 'processed.csv' and 'merged.csv' with your actual filenames
+    processed_df = pd.read_csv("processed.csv")
+    merged_df = pd.read_csv("merged.csv")
 
-# File Upload
+    # Assuming your text data is in a column named 'text'
+    training_texts = pd.concat([processed_df['text'], merged_df['text']])
+
+    vectorizer = TfidfVectorizer()
+    vectorizer.fit(training_texts)  # Retrain the vectorizer
+
+except Exception as e:
+    st.error(f"Failed to load CSVs or retrain vectorizer: {e}")
+    st.stop()
+
+st.title("Enterprise Process Automation")
+
 uploaded_file = st.file_uploader("Upload a text file", type=["txt"])
 
 if uploaded_file:
     text = uploaded_file.read().decode("utf-8")
-    st.subheader("Extracted Text:")
-    st.text_area("File Content", text, height=200)
 
-    # Named Entity Recognition (NER)
-    doc = ner_model(text)
-    entities = [(ent.text, ent.label_) for ent in doc.ents]
-    st.subheader("Named Entities:")
-    st.write(pd.DataFrame(entities, columns=["Entity", "Category"]))
+    # Preprocess the text using the recreated TF-IDF vectorizer
+    text_vectorized = vectorizer.transform([text])
 
-    # Sentiment Analysis
-    sentiment = sentiment_analyzer(text[:512])  # Limit to 512 characters
-    st.subheader("Sentiment Analysis:")
-    st.write(sentiment)
+    # Make prediction
+    prediction = classifier.predict(text_vectorized)[0]
 
-    # Text Classification
-    try:
-        prediction = classifier.predict([text])[0]
-        st.subheader("Text Classification:")
-        st.write(f"Predicted Category: **{prediction}**")
-    except Exception as e:
-        st.error(f"Error during text classification: {e}")
+    st.write(f"Category: {prediction}")
