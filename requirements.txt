@@ -1,4 +1,4 @@
 streamlit
 pandas
 joblib
-numpy==1.26.4 https://files.pythonhosted.org/packages/b9/85/37c35252875150e685f09951d45c50c53443a9b233a046270b206f47702f/numpy-1.26.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+numpy==1.26.4
