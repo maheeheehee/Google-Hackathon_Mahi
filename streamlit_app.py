@@ -8,7 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 st.title("Document Topic Classification & Similarity Search")
 
 try:
-    model_data = joblib.load("lda_model.pkl")
+    model_data = joblib.load("lda_model1.pkl")
     lda = model_data["lda"]
     vectorizer = model_data["vectorizer"]
     topic_names = model_data["topic_names"]
