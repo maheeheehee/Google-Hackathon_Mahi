@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import zipfile
 import joblib
-import re
 
 st.title("Problem Prediction App")
 
@@ -10,7 +9,6 @@ st.title("Problem Prediction App")
 try:
     with zipfile.ZipFile("problem_prediction_model.zip", "r") as zip_ref:
         zip_ref.extractall(".")
-    st.success("Model unzipped successfully.")
 except FileNotFoundError:
     st.error("Model zip file not found.")
     st.stop()
@@ -24,7 +22,6 @@ try:
     clf = model_data["classifier"]
     vectorizer = model_data["vectorizer"]
     mlb = model_data["mlb"]
-    st.success("Model loaded successfully.")
 except Exception as e:
     st.error(f"Error loading model: {e}")
     st.stop()
@@ -44,8 +41,7 @@ if uploaded_file:
             st.subheader("Predicted Problems:")
             for index, row in uploaded_df.iterrows():
                 st.write(f"**Text:** {row['Text']}")
-                st.write(f"**Cleaned Text:** {row['Cleaned_Text']}")
-                st.write(f"**Predicted Problems:** {row['Predicted Problems']}")
+                st.write(f"**Predicted Problems:** **{row['Predicted Problems']}**")
                 st.write("---")
 
         except Exception as e:
