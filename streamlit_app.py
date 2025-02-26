@@ -1,48 +1,77 @@
 import streamlit as st
 import pandas as pd
-import zipfile
-import joblib
+import pickle
+import re
+from sklearn.metrics.pairwise import cosine_similarity
 
-st.title("Problem Prediction App")
+# --- Load Models ---
+@st.cache_resource  # Cache to avoid reloading on every interaction
+def load_models():
+    try:
+        with open("lda_model.pkl", "rb") as f:
+            lda_model = pickle.load(f)
+        with open("vectorizer.pkl", "rb") as f:
+            vectorizer = pickle.load(f)
+        return lda_model, vectorizer
+    except FileNotFoundError:
+        st.error("Model files not found. Please upload `lda_model.pkl` and `vectorizer.pkl` to the app directory.")
+        st.stop()
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        st.stop()
 
-# --- Unzip Model ---
-try:
-    with zipfile.ZipFile("problem_prediction_model.zip", "r") as zip_ref:
-        zip_ref.extractall(".")
-except FileNotFoundError:
-    st.error("Model zip file not found.")
-    st.stop()
-except Exception as e:
-    st.error(f"Error unzipping model: {e}")
-    st.stop()
+lda_model, vectorizer = load_models()
 
-# --- Load Model ---
-try:
-    model_data = joblib.load("problem_prediction_model.pkl")
-    clf = model_data["classifier"]
-    vectorizer = model_data["vectorizer"]
-    mlb = model_data["mlb"]
-except Exception as e:
-    st.error(f"Error loading model: {e}")
-    st.stop()
+# --- Load Dataset for Similarity Search ---
+@st.cache_data  # Cache dataset
+def load_dataset():
+    try:
+        df = pd.read_csv("train_extracted_text_cleaned.csv")
+        df['cleaned_text'] = df['Extracted_Text'].fillna('')
+        X_train = vectorizer.transform(df['cleaned_text'])  # Transform dataset for similarity search
+        return df, X_train
+    except FileNotFoundError:
+        st.error("Dataset file `train_extracted_text_cleaned.csv` not found.")
+        st.stop()
 
-# --- Prediction ---
-uploaded_file = st.file_uploader("Upload CSV file for problem prediction", type=["csv"])
+train_df, X_train = load_dataset()
+
+# --- Function to Clean Text ---
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r'[^a-zA-Z0-9\s]', '', text)  # Remove special characters
+    text = re.sub(r'\s+', ' ', text).strip()  # Remove extra spaces
+    return text
+
+# --- Function to Get Top Matches ---
+def get_top_matches(query, vectorizer, doc_matrix, doc_df, top_n=5):
+    query_vec = vectorizer.transform([query])  # Vectorize query
+    similarities = cosine_similarity(query_vec, doc_matrix).flatten()  # Compute similarity
+    top_indices = similarities.argsort()[-top_n:][::-1]  # Get top N indices
+    return doc_df.iloc[top_indices][['Image', 'Extracted_Text']], similarities[top_indices]
+
+# --- Streamlit UI ---
+st.title("📄 Document Topic Prediction & Similarity Search")
+
+uploaded_file = st.file_uploader("Upload a text file", type=["txt"])
 
 if uploaded_file:
-    if st.button("Predict Problems"):
-        try:
-            uploaded_df = pd.read_csv(uploaded_file)
-            X_test = vectorizer.transform(uploaded_df["Cleaned_Text"])
-            y_pred = clf.predict(X_test)
-            predicted_problems = mlb.inverse_transform(y_pred)
-            uploaded_df["Predicted Problems"] = predicted_problems
+    query_text = uploaded_file.read().decode("utf-8").strip()
+    query_cleaned = clean_text(query_text)
 
-            st.subheader("Predicted Problems:")
-            for index, row in uploaded_df.iterrows():
-                st.write(f"**Text:** {row['Text']}")
-                st.write(f"**Predicted Problems:** **{row['Predicted Problems']}**")
-                st.write("---")
+    # 1️⃣ **Predict Topic** using LDA
+    query_vectorized = vectorizer.transform([query_cleaned])
+    topic_distribution = lda_model.transform(query_vectorized)
+    predicted_topic = topic_distribution.argmax()
 
-        except Exception as e:
-            st.error(f"Error processing CSV: {e}")
+    st.subheader("Predicted Topic:")
+    st.write(f"📝 The document is classified under **Topic {predicted_topic}**")
+
+    # 2️⃣ **Find Similar Documents**
+    top_docs, scores = get_top_matches(query_cleaned, vectorizer, X_train, train_df)
+
+    st.subheader("Top Matching Documents:")
+    for idx, (row, score) in enumerate(zip(top_docs.iterrows(), scores)):
+        st.write(f"**{idx+1}. Image:** {row[1]['Image']} (Score: {score:.4f})")
+        st.write(f"**Extracted Text:** {row[1]['Extracted_Text'][:500]}...")  # Show part of text
+        st.write("---")
