@@ -33,23 +33,23 @@ except Exception as e:
     st.error(f"Error loading documents: {e}")
     st.stop()
 
-# --- Function to Get Top Matches ---
-def get_top_matches(query, vectorizer, lda_model, doc_matrix, doc_df, topic_names, top_n=5):
+# --- Function to Get All Matches ---
+def get_matches(query, vectorizer, lda_model, doc_matrix, doc_df, topic_names):
     query_cleaned = clean_text(query)
-    query_vec = vectorizer.transform([query_cleaned])
+    query_vec = vectorizer.transform([query_cleaned]).toarray()  # Convert sparse to dense
     query_topic_dist = lda_model.transform(query_vec)
-    doc_topic_dist = lda_model.transform(doc_matrix)
+    doc_topic_dist = lda_model.transform(doc_matrix.toarray())  # Convert sparse to dense
 
     similarities = cosine_similarity(query_topic_dist, doc_topic_dist).flatten()
-    top_indices = similarities.argsort()[-top_n:][::-1]
+    sorted_indices = np.argsort(similarities)[::-1]  # Sort by highest similarity
 
-    top_docs = doc_df.iloc[top_indices].copy()
-    top_docs["Assigned_Topic"] = [
-        topic_names[np.argmax(lda_model.transform([vectorizer.transform([text])])[0])]
-        for text in top_docs["cleaned_text"]
+    matched_docs = doc_df.iloc[sorted_indices].copy()
+    matched_docs["Assigned_Topic"] = [
+        topic_names[np.argmax(lda_model.transform(vectorizer.transform([text]).toarray())[0])]
+        for text in matched_docs["cleaned_text"]
     ]
 
-    return top_docs[['Image', 'Extracted_Text', 'Assigned_Topic']], similarities[top_indices]
+    return matched_docs[['Image', 'Extracted_Text', 'Assigned_Topic']], similarities[sorted_indices]
 
 # --- Streamlit Interface ---
 query = st.text_input("Enter a query to test:")
@@ -57,12 +57,12 @@ if st.button("Search"):
     if not query.strip():
         st.warning("Please enter a valid query!")
     else:
-        results, scores = get_top_matches(query, vectorizer, lda, doc_matrix, doc_df, topic_names)
+        results, scores = get_matches(query, vectorizer, lda, doc_matrix, doc_df, topic_names)
 
         if scores.max() == 0:
             st.warning("No relevant documents found.")
         else:
-            st.subheader("🔝 Top Matching Documents:")
+            st.subheader(f"🔝 Top {len(results)} Matching Documents:")
             for i, (index, row) in enumerate(results.iterrows()):
                 st.write(f"**{i+1}. Image:** {row['Image']} **(Score: {scores[i]:.4f})**")
                 st.write(f"🏷 **Assigned Topic:** {row['Assigned_Topic']}")
