@@ -1,6 +1,7 @@
 import streamlit as st
 import joblib
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Load the model
 try:
@@ -9,27 +10,27 @@ except Exception as e:
     st.error(f"Failed to load model: {e}")
     st.stop()
 
+# Load matched_form_data.csv and retrain TF-IDF
+try:
+    df = pd.read_csv("matched_form_data.csv")
+    vectorizer = TfidfVectorizer()
+    vectorizer.fit(df['Cleaned_Text'])  # Train vectorizer on Cleaned_Text
+except Exception as e:
+    st.error(f"Failed to load CSV or retrain vectorizer: {e}")
+    st.stop()
+
 st.title("Model Analysis App")
 
-uploaded_file = st.file_uploader("Upload matched_form_data.csv", type=["csv"])
+uploaded_file = st.file_uploader("Upload a text file", type=["txt"])
 
 if uploaded_file:
     if st.button("Run Analysis"):
         try:
-            df = pd.read_csv(uploaded_file)
+            text = uploaded_file.read().decode("utf-8")
+            text_vectorized = vectorizer.transform([text])  # Vectorize input text
+            prediction = classifier.predict(text_vectorized)[0]
 
-            # Separate features (TF-IDF columns) from the target
-            tfidf_columns = [col for col in df.columns if col not in ['Text', 'Label', 'Cleaned_Text', 'Matched_Problems']]
-            features = df[tfidf_columns]
-
-            predictions = classifier.predict(features)
-            df['prediction'] = predictions
-
-            st.write("Analysis Results:")
-            st.dataframe(df)
-
-            st.write("Prediction Value Counts:")
-            st.write(df['prediction'].value_counts())
+            st.write(f"Prediction: {prediction}")
 
         except Exception as e:
-            st.error(f"Error processing CSV: {e}")
+            st.error(f"Error processing text: {e}")
