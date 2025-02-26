@@ -1,7 +1,13 @@
 # Document Classification and Topic Extraction
 
 ## Overview
-This repository provides a Streamlit-based web application for classifying documents and extracting key topics from textual data. The system processes documents, applies machine learning models to categorize them, and provides topic analysis. The application supports CSV uploads and offers an interactive visualization of results.
+This repository provides a document classification and similarity search system. Given a query, the system retrieves top-matching documents along with their assigned topics and extracted text. It is designed for text-based document understanding and information retrieval.
+
+The model classifies uploaded documents and extracts key topics from the text using NLP techniques. The user can test different queries to find semantically similar documents in the dataset.
+## Example Output
+Below is an example of the system in action:
+
+![image](https://github.com/user-attachments/assets/b1c5f0ff-7f67-43df-a59f-a58ae3055bed)
 
 ## Features
 - Document classification using machine learning models
@@ -81,8 +87,6 @@ To change the test file used, modify the file path in `streamlit_app.py`.
 - Python 3.8 or higher
 - Dependencies listed in `requirements.txt`
 
-##Here id a screenshot of the application 
-![image](https://github.com/user-attachments/assets/b1c5f0ff-7f67-43df-a59f-a58ae3055bed)
 
 
 ## Troubleshooting
@@ -96,4 +100,4 @@ This project is open-source under the LICENSE.
 ## Contributors
 Mahi Mann
 
-Feel free to contribute or report issues!
+
