@@ -3,7 +3,7 @@ import joblib
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# Load the model
+# Load the model (RandomForestClassifier)
 try:
     classifier = joblib.load("my_model.pkl")
 except Exception as e:
@@ -21,16 +21,15 @@ except Exception as e:
 
 st.title("Model Analysis App")
 
-uploaded_file = st.file_uploader("Upload matched_form_data.csv", type=["csv"]) #Change here.
+uploaded_file = st.file_uploader("Upload matched_form_data.csv", type=["csv"])
 
 if uploaded_file:
     if st.button("Run Analysis"):
         try:
-            uploaded_df = pd.read_csv(uploaded_file) #Load the uploaded CSV.
-            text_vectorized = vectorizer.transform(uploaded_df['Cleaned_Text']) #Vectorize the Cleaned_Text column.
+            uploaded_df = pd.read_csv(uploaded_file)
+            text_vectorized = vectorizer.transform(uploaded_df['Cleaned_Text'])
             predictions = classifier.predict(text_vectorized)
-
-            uploaded_df['prediction'] = predictions #Add predictions to the dataframe.
+            uploaded_df['prediction'] = predictions
 
             st.write("Analysis Results:")
             st.dataframe(uploaded_df)
