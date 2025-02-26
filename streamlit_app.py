@@ -21,16 +21,22 @@ except Exception as e:
 
 st.title("Model Analysis App")
 
-uploaded_file = st.file_uploader("Upload a text file", type=["txt"])
+uploaded_file = st.file_uploader("Upload matched_form_data.csv", type=["csv"]) #Change here.
 
 if uploaded_file:
     if st.button("Run Analysis"):
         try:
-            text = uploaded_file.read().decode("utf-8")
-            text_vectorized = vectorizer.transform([text])  # Vectorize input text
-            prediction = classifier.predict(text_vectorized)[0]
+            uploaded_df = pd.read_csv(uploaded_file) #Load the uploaded CSV.
+            text_vectorized = vectorizer.transform(uploaded_df['Cleaned_Text']) #Vectorize the Cleaned_Text column.
+            predictions = classifier.predict(text_vectorized)
 
-            st.write(f"Prediction: {prediction}")
+            uploaded_df['prediction'] = predictions #Add predictions to the dataframe.
+
+            st.write("Analysis Results:")
+            st.dataframe(uploaded_df)
+
+            st.write("Prediction Value Counts:")
+            st.write(uploaded_df['prediction'].value_counts())
 
         except Exception as e:
-            st.error(f"Error processing text: {e}")
+            st.error(f"Error processing CSV: {e}")
