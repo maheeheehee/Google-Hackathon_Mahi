@@ -5,81 +5,58 @@ import re
 from sklearn.metrics.pairwise import cosine_similarity
 
 # --- Load Model ---
-@st.cache_resource
-def load_model():
-    try:
-        model_data = joblib.load("lda_model1.pkl")
-        lda = model_data["lda"]
-        vectorizer = model_data["vectorizer"]
-        topic_names = model_data["topic_names"]
-        return lda, vectorizer, topic_names
-    except Exception as e:
-        st.error(f"Error loading model: {e}")
-        st.stop()
+st.title("Document Topic Classification & Similarity Search")
 
-lda, vectorizer, topic_names = load_model()
+try:
+    model_data = joblib.load("lda_model.pkl")
+    lda = model_data["lda"]
+    vectorizer = model_data["vectorizer"]
+    topic_names = model_data["topic_names"]
+except Exception as e:
+    st.error(f"Error loading model: {e}")
+    st.stop()
 
 # --- Text Cleaning Function ---
 def clean_text(text):
-    if not isinstance(text, str):  # Ensure input is a string
-        text = str(text)
     text = text.lower()
     text = re.sub(r'[^a-zA-Z0-9\s]', '', text)  # Remove special characters
     text = re.sub(r'\s+', ' ', text).strip()  # Remove extra spaces
     return text
 
-# --- Function to Predict Document Topic ---
-def predict_topic(text, lda, vectorizer, topic_names):
-    text_clean = clean_text(text)
-    text_vectorized = vectorizer.transform([text_clean])
-    topic_distribution = lda.transform(text_vectorized)
-    topic_index = topic_distribution.argmax()
-    topic_name = topic_names[topic_index]
-    return topic_name, topic_distribution[0][topic_index]
+# --- Load Documents ---
+try:
+    doc_df = pd.read_csv("test_documents.csv")  # Ensure this file exists
+    doc_df['cleaned_text'] = doc_df['Extracted_Text'].fillna('').apply(clean_text)
+    doc_matrix = vectorizer.transform(doc_df['cleaned_text'])  # Transform documents
+except Exception as e:
+    st.error(f"Error loading documents: {e}")
+    st.stop()
 
-# --- Function to Find Similar Documents ---
-def get_top_matches(query, vectorizer, doc_matrix, doc_df, top_n=5):
-    query_vec = vectorizer.transform([query])  # Vectorize query
-    similarities = cosine_similarity(query_vec, doc_matrix).flatten()  # Compute similarity
-    top_indices = similarities.argsort()[-top_n:][::-1]  # Get top N indices
+# --- Function to Get Top Matches ---
+def get_top_matches(query, vectorizer, lda_model, doc_matrix, doc_df, top_n=5):
+    query_cleaned = clean_text(query)
+    query_vec = vectorizer.transform([query_cleaned])
+    query_topic_dist = lda_model.transform(query_vec)
+    doc_topic_dist = lda_model.transform(doc_matrix)
+    
+    similarities = cosine_similarity(query_topic_dist, doc_topic_dist).flatten()
+    top_indices = similarities.argsort()[-top_n:][::-1]
+
     return doc_df.iloc[top_indices][['Image', 'Extracted_Text']], similarities[top_indices]
 
-# --- Streamlit UI ---
-st.title("📄 Document Topic Classification & Similarity Search")
-
-# --- File Upload ---
-uploaded_file = st.file_uploader("📂 Upload a CSV file with extracted text", type=["csv"])
-
-if uploaded_file:
-    try:
-        df = pd.read_csv(uploaded_file)
+# --- Streamlit Interface ---
+query = st.text_input("Enter a query to test:")
+if st.button("Search"):
+    if not query.strip():
+        st.warning("Please enter a valid query!")
+    else:
+        results, scores = get_top_matches(query, vectorizer, lda, doc_matrix, doc_df)
         
-        # Ensure 'Extracted_Text' column exists
-        if 'Extracted_Text' not in df.columns:
-            st.error("Error: 'Extracted_Text' column not found in uploaded file.")
-            st.stop()
-
-        # Clean text and vectorize
-        df['cleaned_text'] = df['Extracted_Text'].fillna('').apply(clean_text)
-        doc_matrix = vectorizer.transform(df['cleaned_text'])
-
-        # Predict topics
-        df['Predicted_Topic'] = df['cleaned_text'].apply(lambda x: predict_topic(x, lda, vectorizer, topic_names)[0])
-
-        st.success("✅ Topic classification complete!")
-        st.write(df[['Image', 'Predicted_Topic']])
-
-        # --- Query-based Similarity Search ---
-        query = st.text_area("🔎 Enter a query to find similar documents:")
-
-        if query:
-            top_matches, similarity_scores = get_top_matches(query, vectorizer, doc_matrix, df)
+        if scores.max() == 0:
+            st.warning("No relevant documents found.")
+        else:
             st.subheader("🔝 Top Matching Documents:")
-            
-            for idx, (index, row) in enumerate(top_matches.iterrows()):
-                st.write(f"**{idx+1}. Image:** {row['Image']} (Score: {similarity_scores[idx]:.4f})")
-                st.write(f"**Extracted Text:** {row['Extracted_Text'][:300]}...")  # Show first 300 chars
+            for i, (index, row) in enumerate(results.iterrows()):
+                st.write(f"**{i+1}. Image:** {row['Image']} **(Score: {scores[i]:.4f})**")
+                st.write(f"📄 **Extracted Text:** {row['Extracted_Text'][:300]}...")  # Show preview
                 st.write("---")
-
-    except Exception as e:
-        st.error(f"Error processing file: {e}")
