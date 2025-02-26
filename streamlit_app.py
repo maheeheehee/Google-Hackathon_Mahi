@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import joblib
 import re
-from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
 # --- Load Model ---
 st.title("Document Topic Classification & Similarity Search")
@@ -29,29 +29,26 @@ try:
     doc_df = pd.read_csv("test_documents.csv")  # Ensure this file exists
     doc_df['cleaned_text'] = doc_df['Extracted_Text'].fillna('').apply(clean_text)
     doc_matrix = vectorizer.transform(doc_df['cleaned_text'])  # Transform documents
+    doc_topic_dist = lda.transform(doc_matrix)
 except Exception as e:
     st.error(f"Error loading documents: {e}")
     st.stop()
 
 # --- Function to Assign Topics ---
-def assign_topic(lda_model, text_vector, topic_names):
-    topic_distribution = lda_model.transform(text_vector)
-    top_topic = np.argmax(topic_distribution)
-    return topic_names[top_topic]
+def assign_topic(topic_distribution, topic_names):
+    max_topic_idx = np.argmax(topic_distribution)  # Get index of most probable topic
+    return topic_names[max_topic_idx]
 
-# Assign topics to all documents
-doc_df['Assigned_Topic'] = [assign_topic(lda, vectorizer.transform([text]), topic_names) for text in doc_df['cleaned_text']]
+doc_df['Assigned_Topic'] = [assign_topic(topic_dist, topic_names) for topic_dist in doc_topic_dist]
 
 # --- Function to Get Top Matches ---
-def get_top_matches(query, vectorizer, lda_model, doc_matrix, doc_df, topic_names, top_n=5):
+def get_top_matches(query, vectorizer, lda_model, doc_matrix, doc_df, top_n=5):
     query_cleaned = clean_text(query)
     query_vec = vectorizer.transform([query_cleaned])
     query_topic_dist = lda_model.transform(query_vec)
-    doc_topic_dist = lda_model.transform(doc_matrix)
     
     similarities = cosine_similarity(query_topic_dist, doc_topic_dist).flatten()
     top_indices = similarities.argsort()[-top_n:][::-1]
-    
     return doc_df.iloc[top_indices][['Image', 'Extracted_Text', 'Assigned_Topic']], similarities[top_indices]
 
 # --- Streamlit Interface ---
@@ -60,7 +57,7 @@ if st.button("Search"):
     if not query.strip():
         st.warning("Please enter a valid query!")
     else:
-        results, scores = get_top_matches(query, vectorizer, lda, doc_matrix, doc_df, topic_names)
+        results, scores = get_top_matches(query, vectorizer, lda, doc_matrix, doc_df)
         
         if scores.max() == 0:
             st.warning("No relevant documents found.")
