@@ -11,17 +11,13 @@ except Exception as e:
 
 st.title("Model Analysis App")
 
-uploaded_file = st.file_uploader("Upload matched_form_data.csv", type=["csv"])
+uploaded_file = st.file_uploader("Upload Cleaned CSV File", type=["csv"])
 
 if uploaded_file:
-    if st.button("Run Analysis"):
+    if st.button("Run Analysis"):  # Add a button
         try:
             df = pd.read_csv(uploaded_file)
-
-            # Separate features (TF-IDF columns) from the target
-            tfidf_columns = [col for col in df.columns if col not in ['Text', 'Label', 'Cleaned_Text', 'Matched_Problems']]
-            features = df[tfidf_columns]
-
+            features = df.drop('target', axis=1)
             predictions = classifier.predict(features)
             df['prediction'] = predictions
 
