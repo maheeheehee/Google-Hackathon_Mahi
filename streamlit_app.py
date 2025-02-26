@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 
 # Load the model
 try:
-    classifier = joblib.load("model.pkl")
+    classifier = joblib.load("my_model.pkl")
 except Exception as e:
     st.error(f"Failed to load model: {e}")
     st.stop()
