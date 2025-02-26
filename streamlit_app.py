@@ -6,7 +6,21 @@ import plotly.express as px
 st.title("Intelligent Process Automation (IPA) Detection")
 
 def detect_ipa_detailed(text):
-    # ... (same as before)
+    keywords = ["automation", "process", "data entry", "document processing", "customer service", "workflow", "robotic", "rpa", "ai", "intelligent"]
+    if isinstance(text, str):
+        text = text.lower()
+        matching_keywords = []
+        for keyword in keywords:
+            if re.search(r'\b' + re.escape(keyword) + r'\b', text):
+                matching_keywords.append(keyword)
+
+        if matching_keywords:
+            confidence = len(matching_keywords) / len(keywords)
+            return "IPA Related", ", ".join(matching_keywords), confidence
+        else:
+            return "Not IPA Related", "", 0
+    else:
+        return "Not IPA Related", "", 0
 
 uploaded_file = st.file_uploader("Upload CSV file for IPA detection", type=["csv"])
 
@@ -32,12 +46,12 @@ if uploaded_file:
             # --- Visualizations ---
             st.subheader("IPA Detection Distribution")
             detection_counts = uploaded_df['IPA Detection'].value_counts()
-            fig_bar = px.bar(detection_counts, x=detection_counts.index, y=detection_counts.values, labels={'y': 'Count', 'x': 'IPA Detection'}, color=detection_counts.index) #added color
+            fig_bar = px.bar(detection_counts, x=detection_counts.index, y=detection_counts.values, labels={'y': 'Count', 'x': 'IPA Detection'}, color=detection_counts.index)
             st.plotly_chart(fig_bar)
 
             # --- Examples of IPA Related Texts ---
             st.subheader("Examples of IPA Related Texts")
-            ipa_related_df = uploaded_df[uploaded_df['IPA Detection'] == "IPA Related"].head(5)  # Show top 5
+            ipa_related_df = uploaded_df[uploaded_df['IPA Detection'] == "IPA Related"].head(5)
             for index, row in ipa_related_df.iterrows():
                 st.write(f"**Text:** {row['Text']}")
                 st.write(f"**Matching Keywords:** {row['Matching Keywords']}")
