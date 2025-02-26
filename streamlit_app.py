@@ -6,38 +6,33 @@ import sklearn
 st.title("Model Analysis App")
 st.write(f"Using scikit-learn version: {sklearn.__version__}")
 
-# First let's try to check if this is a pickle compatibility issue
+# Load the model and vectorizer together
 try:
-    model_data = joblib.load("my_model.pkl")
-    st.success("Model loaded successfully")
+    model_data = joblib.load("my_model_new.pkl")  # Use the new model file
     
     # Check if model_data is a dict with both classifier and vectorizer
     if isinstance(model_data, dict) and 'classifier' in model_data and 'vectorizer' in model_data:
         classifier = model_data['classifier']
         vectorizer = model_data['vectorizer']
-        st.success("Model and vectorizer extracted successfully")
+        st.success("Model and vectorizer loaded successfully")
     else:
-        classifier = model_data  # Assume it's just the model
-        # We'll need to load the vectorizer separately
-        try:
-            df = pd.read_csv("matched_form_data.csv")
-            vectorizer = TfidfVectorizer()
-            vectorizer.fit(df['Cleaned_Text'])
-            st.success("Vectorizer trained from CSV data")
-        except Exception as e:
-            st.error(f"Failed to load CSV or train vectorizer: {e}")
-            st.stop()
+        st.error("Model file doesn't contain both classifier and vectorizer")
+        st.stop()
 except Exception as e:
     st.error(f"Failed to load model: {e}")
-    st.error("This is likely a scikit-learn version mismatch. Please ensure you're using the same version of scikit-learn that was used to train the model.")
     st.stop()
 
-uploaded_file = st.file_uploader("Upload matched_form_data.csv", type=["csv"])
+uploaded_file = st.file_uploader("Upload CSV file for analysis", type=["csv"])
 if uploaded_file:
     if st.button("Run Analysis"):
         try:
             uploaded_df = pd.read_csv(uploaded_file)
             
+            # Ensure the Cleaned_Text column exists
+            if 'Cleaned_Text' not in uploaded_df.columns:
+                st.error("The uploaded CSV must contain a 'Cleaned_Text' column")
+                st.stop()
+                
             # Transform the text using the vectorizer
             text_vectorized = vectorizer.transform(uploaded_df['Cleaned_Text'])
             
@@ -52,5 +47,15 @@ if uploaded_file:
             st.dataframe(uploaded_df)
             st.write("Prediction Value Counts:")
             st.write(uploaded_df['prediction'].value_counts())
+            
+            # Option to download results
+            csv = uploaded_df.to_csv(index=False)
+            st.download_button(
+                label="Download Results as CSV",
+                data=csv,
+                file_name="analysis_results.csv",
+                mime="text/csv"
+            )
         except Exception as e:
             st.error(f"Error processing CSV: {e}")
+            st.exception(e)  # This will display the full traceback for debugging
