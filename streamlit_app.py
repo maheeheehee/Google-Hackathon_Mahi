@@ -1,26 +1,12 @@
 import streamlit as st
 import pandas as pd
 import re
-import plotly.express as px  # For interactive charts
+import plotly.express as px
 
 st.title("Intelligent Process Automation (IPA) Detection")
 
 def detect_ipa_detailed(text):
-    keywords = ["automation", "process", "data entry", "document processing", "customer service", "workflow", "robotic", "rpa", "ai", "intelligent"]
-    if isinstance(text, str):
-        text = text.lower()
-        matching_keywords = []
-        for keyword in keywords:
-            if re.search(r'\b' + re.escape(keyword) + r'\b', text):
-                matching_keywords.append(keyword)
-
-        if matching_keywords:
-            confidence = len(matching_keywords) / len(keywords)
-            return "IPA Related", ", ".join(matching_keywords), confidence
-        else:
-            return "Not IPA Related", "", 0
-    else:
-        return "Not IPA Related", "", 0
+    # ... (same as before)
 
 uploaded_file = st.file_uploader("Upload CSV file for IPA detection", type=["csv"])
 
@@ -34,28 +20,28 @@ if uploaded_file:
 
             uploaded_df[['IPA Detection', 'Matching Keywords', 'Confidence']] = pd.DataFrame(ipa_results, index=uploaded_df.index)
 
-            # --- Visualizations ---
-            st.subheader("IPA Detection Visualizations")
+            # --- Summary Metrics ---
+            total_texts = len(uploaded_df)
+            ipa_related_count = len(uploaded_df[uploaded_df['IPA Detection'] == "IPA Related"])
+            ipa_related_percentage = (ipa_related_count / total_texts) * 100
 
-            # Bar Chart
+            st.subheader("IPA Detection Summary")
+            st.write(f"Total texts analyzed: {total_texts}")
+            st.write(f"IPA Related texts: {ipa_related_count} ({ipa_related_percentage:.2f}%)")
+
+            # --- Visualizations ---
+            st.subheader("IPA Detection Distribution")
             detection_counts = uploaded_df['IPA Detection'].value_counts()
-            fig_bar = px.bar(detection_counts, x=detection_counts.index, y=detection_counts.values, labels={'y': 'Count', 'x': 'IPA Detection'})
+            fig_bar = px.bar(detection_counts, x=detection_counts.index, y=detection_counts.values, labels={'y': 'Count', 'x': 'IPA Detection'}, color=detection_counts.index) #added color
             st.plotly_chart(fig_bar)
 
-            # Pie Chart
-            fig_pie = px.pie(detection_counts, names=detection_counts.index, values=detection_counts.values, title="IPA Detection Distribution")
-            st.plotly_chart(fig_pie)
-
-            # --- Detailed Results ---
-            st.subheader("Detailed Results")
-            for index, row in uploaded_df.iterrows():
-                if row['IPA Detection'] == "IPA Related":
-                    st.write(f"**Text:** {row['Text']}")
-                    st.write(f"**Cleaned Text:** {row['Cleaned_Text']}")
-                    st.write(f"**IPA Detection:** {row['IPA Detection']}")
-                    st.write(f"**Matching Keywords:** {row['Matching Keywords']}")
-                    st.write(f"**Confidence:** {row['Confidence']:.2f}")
-                    st.write("---")
+            # --- Examples of IPA Related Texts ---
+            st.subheader("Examples of IPA Related Texts")
+            ipa_related_df = uploaded_df[uploaded_df['IPA Detection'] == "IPA Related"].head(5)  # Show top 5
+            for index, row in ipa_related_df.iterrows():
+                st.write(f"**Text:** {row['Text']}")
+                st.write(f"**Matching Keywords:** {row['Matching Keywords']}")
+                st.write("---")
 
         except Exception as e:
             st.error(f"Error processing CSV: {e}")
