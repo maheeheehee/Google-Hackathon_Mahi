@@ -18,10 +18,11 @@ try:
     model_data = joblib.load("lda_model.pkl")
     lda = model_data["lda"]
     vectorizer = model_data["vectorizer"]
-    topic_names = model_data.get("topic_names", [f"Topic {i}" for i in range(lda.n_components_)])
+    topic_names = model_data.get("topic_names", [f"Topic {i}" for i in range(lda.n_components)])
 except Exception as e:
     st.error(f"Error loading model: {e}")
     st.stop()
+
 
 # --- File Upload ---
 uploaded_file = st.file_uploader("Upload a text file", type=["txt"])
