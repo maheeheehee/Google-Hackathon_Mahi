@@ -1,62 +1,51 @@
 import streamlit as st
 import pandas as pd
-import re
-import plotly.express as px
-
-st.title("Intelligent Process Automation (IPA) Detection")
-
+import zipfile
+import joblib
 import re
 
-def detect_ipa_detailed(text):
-    keywords = ["automation", "process", "data entry", "document processing", "customer service", "workflow", "robotic", "rpa", "ai", "intelligent"]
-    if isinstance(text, str):
-        text = text.lower()
-        matching_keywords = []
-        for keyword in keywords:
-            if re.search(r'\b' + re.escape(keyword) + r'\b', text):  # Use word boundaries (\b)
-                matching_keywords.append(keyword)
+st.title("Problem Prediction App")
 
-        if matching_keywords:
-            confidence = len(matching_keywords) / len(keywords)
-            return "IPA Related", ", ".join(matching_keywords), confidence
-        else:
-            return "Not IPA Related", "", 0
-    else:
-        return "Not IPA Related", "", 0
+# --- Unzip Model ---
+try:
+    with zipfile.ZipFile("problem_prediction_model.zip", "r") as zip_ref:
+        zip_ref.extractall(".")
+    st.success("Model unzipped successfully.")
+except FileNotFoundError:
+    st.error("Model zip file not found.")
+    st.stop()
+except Exception as e:
+    st.error(f"Error unzipping model: {e}")
+    st.stop()
 
-uploaded_file = st.file_uploader("Upload CSV file for IPA detection", type=["csv"])
+# --- Load Model ---
+try:
+    model_data = joblib.load("problem_prediction_model.pkl")
+    clf = model_data["classifier"]
+    vectorizer = model_data["vectorizer"]
+    mlb = model_data["mlb"]
+    st.success("Model loaded successfully.")
+except Exception as e:
+    st.error(f"Error loading model: {e}")
+    st.stop()
+
+# --- Prediction ---
+uploaded_file = st.file_uploader("Upload CSV file for problem prediction", type=["csv"])
 
 if uploaded_file:
-    if st.button("Detect IPA"):
+    if st.button("Predict Problems"):
         try:
             uploaded_df = pd.read_csv(uploaded_file)
-            ipa_results = []
-            for text in uploaded_df['Cleaned_Text']:
-                ipa_results.append(detect_ipa_detailed(text))
+            X_test = vectorizer.transform(uploaded_df["Cleaned_Text"])
+            y_pred = clf.predict(X_test)
+            predicted_problems = mlb.inverse_transform(y_pred)
+            uploaded_df["Predicted Problems"] = predicted_problems
 
-            uploaded_df[['IPA Detection', 'Matching Keywords', 'Confidence']] = pd.DataFrame(ipa_results, index=uploaded_df.index)
-
-            # --- Summary Metrics ---
-            total_texts = len(uploaded_df)
-            ipa_related_count = len(uploaded_df[uploaded_df['IPA Detection'] == "IPA Related"])
-            ipa_related_percentage = (ipa_related_count / total_texts) * 100
-
-            st.subheader("IPA Detection Summary")
-            st.write(f"Total texts analyzed: {total_texts}")
-            st.write(f"IPA Related texts: {ipa_related_count} ({ipa_related_percentage:.2f}%)")
-
-            # --- Visualizations ---
-            st.subheader("IPA Detection Distribution")
-            detection_counts = uploaded_df['IPA Detection'].value_counts()
-            fig_bar = px.bar(detection_counts, x=detection_counts.index, y=detection_counts.values, labels={'y': 'Count', 'x': 'IPA Detection'}, color=detection_counts.index)
-            st.plotly_chart(fig_bar)
-
-            # --- Examples of IPA Related Texts ---
-            st.subheader("Examples of IPA Related Texts")
-            ipa_related_df = uploaded_df[uploaded_df['IPA Detection'] == "IPA Related"].head(5)
-            for index, row in ipa_related_df.iterrows():
+            st.subheader("Predicted Problems:")
+            for index, row in uploaded_df.iterrows():
                 st.write(f"**Text:** {row['Text']}")
-                st.write(f"**Matching Keywords:** {row['Matching Keywords']}")
+                st.write(f"**Cleaned Text:** {row['Cleaned_Text']}")
+                st.write(f"**Predicted Problems:** {row['Predicted Problems']}")
                 st.write("---")
 
         except Exception as e:
