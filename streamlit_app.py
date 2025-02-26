@@ -5,13 +5,15 @@ import plotly.express as px
 
 st.title("Intelligent Process Automation (IPA) Detection")
 
+import re
+
 def detect_ipa_detailed(text):
     keywords = ["automation", "process", "data entry", "document processing", "customer service", "workflow", "robotic", "rpa", "ai", "intelligent"]
     if isinstance(text, str):
         text = text.lower()
         matching_keywords = []
         for keyword in keywords:
-            if re.search(r'\b' + re.escape(keyword) + r'\b', text):
+            if re.search(r'\b' + re.escape(keyword) + r'\b', text):  # Use word boundaries (\b)
                 matching_keywords.append(keyword)
 
         if matching_keywords:
